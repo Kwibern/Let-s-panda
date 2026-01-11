@@ -23,7 +23,7 @@
 // @grant        GM.notification
 // @connect      *
 // @run-at       document-end
-// @version      0.2.29
+// @version      0.2.30
 // ==/UserScript==
 
 jQuery(function ($) {
@@ -39,7 +39,7 @@ jQuery(function ($) {
    * Download full image or resized image
    * @type {String} full
    *                resized
-   * 
+   *
    * "full" image is the original image, which is usually larger than "resized" image.
    */
   var outputImgSrc = "full"; // or 'resized'
@@ -356,7 +356,15 @@ Please make sure you are logged in successfully and then click this <button clas
         responseType: "arraybuffer",
         onload: function (response) {
           final++;
-          success(response, filename);
+          if (response.response.byteLength <= 200) {
+            console.log(`${response.finalUrl} response size ${response.response.byteLength} is lower than 200 bytes, this might be a limitation of exhentai, change it to download backupUrl image url`);
+            error(response, filename);
+          } else if (response.finalUrl.includes("bounce_login.php")) {
+            console.log(`Download ${response.finalUrl} requires login e-hentai/exhentai, change it to download backupUrl image url.`);
+            error(response, filename);
+          } else {
+            success(response, filename);
+          }
         },
         onerror: function (err) {
           final++;
@@ -1203,7 +1211,7 @@ text-decoration: none;
             });
           }
         }, { passive: false });
-        
+
         await wrap(await GM.getValue("mode"));
       } else {
         alert(
@@ -1334,7 +1342,7 @@ text-decoration: none;
       }
       if (!view_mode && !viewed) {
         viewAllMode();
-        // Stop image loadding for thumbnails.
+        // Stop image loading for thumbnails.
         var imageToStop = document.querySelector("#gdt").querySelectorAll("a");
         // Clear .gt200
         document.querySelector("#gdt").removeAttribute("class");
@@ -1351,7 +1359,7 @@ text-decoration: none;
 
     adjustGmid();
     if (view_mode) {
-      // Stop image loadding for thumbnails.
+      // Stop image loading for thumbnails.
       var imageToStop = document.querySelector("#gdt").querySelectorAll("a");
       // Clear class for #gdt
       document.querySelector("#gdt").removeAttribute("class");
