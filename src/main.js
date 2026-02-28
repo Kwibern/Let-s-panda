@@ -277,7 +277,7 @@ Please make sure you are logged in successfully and then click this <button clas
       GM.xmlHttpRequest({
         method: "POST",
         url: "https://forums.e-hentai.org/index.php?act=Login&CODE=01",
-        data: `referer=https://forums.e-hentai.org/index.php?&b=&bt=&UserName=${username.value}&PassWord=${password.value}&CookieDate=1"}`,
+        data: `referer=https://forums.e-hentai.org/index.php?&b=&bt=&UserName=${encodeURIComponent(username.value)}&PassWord=${encodeURIComponent(password.value)}&CookieDate=1`,
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
         },
@@ -302,7 +302,7 @@ Please make sure you are logged in successfully and then click this <button clas
         onerror: function (err) {
           console.error(err);
           error.style = "color:red";
-          error.innerText("Login got error: Please contact me at https://github.com/MinoLiu/Let-s-panda/issues");
+          error.innerText = "Login got error: Please contact me at https://github.com/MinoLiu/Let-s-panda/issues";
           loadding.hidden = true;
         },
       });
@@ -559,11 +559,24 @@ Please make sure you are logged in successfully and then click this <button clas
      * Get the href of all images from all pages.
      */
     const getHref = () => {
-      childNodes = document.querySelector("table[class=ptt] tbody tr")
+      const childNodes = document.querySelector("table[class=ptt] tbody tr")
         .childNodes;
       let page = parseInt(
         childNodes[childNodes.length - 2].textContent.replace(",", "")
       );
+      if (Number.isNaN(page) || page < 1) {
+        page = 1;
+      }
+      let completedPages = 0;
+      const pageHrefs = new Array(page).fill(null);
+      const finishPage = () => {
+        completedPages++;
+        if (completedPages === page) {
+          hrefs = pageHrefs.flat().filter(Boolean);
+          getImage();
+        }
+      };
+
       for (let i = 0; i < page; i++) {
         GM.xmlHttpRequest({
           method: "GET",
@@ -572,19 +585,14 @@ Please make sure you are logged in successfully and then click this <button clas
             if (debug)
               console.log(`page ${loc}?p=${i} detect ${response.responseText}`);
             let imgs = getCurrPageImgUrl(response);
-            imgs.forEach((v) => {
-              hrefs.push(v.href);
-            });
-            if (i == page - 1) {
-              getImage();
-            }
+            pageHrefs[i] = imgs.map((v) => v.href);
+            finishPage();
           },
           onerror: function (err) {
             download.innerHTML =
               '<span style="margin-left:10px;">▶</span> <a href="#">Get href failed</a>';
-            if (i == page - 1) {
-              getImage();
-            }
+            pageHrefs[i] = [];
+            finishPage();
             if (debug) console.log(err);
           },
         });
@@ -597,6 +605,13 @@ Please make sure you are logged in successfully and then click this <button clas
     $(".panda_download").on("click", () => {
       if (threading < 1) threading = 1;
       if (threading > 32) threading = 32;
+      zip = new JSZip();
+      current = 0;
+      total = 0;
+      final = 0;
+      failed = 0;
+      hrefs = [];
+      images = [];
       if (debug) console.time("eHentai");
       $win.on("beforeunload", function () {
         return "Progress is running...";
@@ -705,10 +720,10 @@ Please make sure you are logged in successfully and then click this <button clas
               if (debug) console.log(err);
               that.retry++;
               if (that.retry > 2) {
-                alert(`Page number ${nextID + 1} load failed for 3 times.`);
+                alert(`Page number ${pageID + 1} load failed for 3 times.`);
                 that.loadNextImage();
               } else {
-                that.getHref(nextID);
+                that.getHref(pageID);
               }
             },
           });
@@ -778,6 +793,7 @@ Please make sure you are logged in successfully and then click this <button clas
           this.loadNextImage();
         },
         onFailed: function (err, href) {
+          var that = this;
           GM.xmlHttpRequest({
             method: "GET",
             url: href,
@@ -786,7 +802,7 @@ Please make sure you are logged in successfully and then click this <button clas
             },
             onerror: function (err) {
               if (debug) console.log(err);
-              this.loadNextImage();
+              that.loadNextImage();
             },
           });
         },
